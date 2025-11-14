@@ -1,0 +1,11 @@
+[package]
+name = "config_loader"
+version = "0.0.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+_workspace-hack = { version = "0.1", path = "../_workspace-hack" }
