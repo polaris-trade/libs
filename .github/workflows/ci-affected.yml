@@ -1,5 +1,5 @@
 # Build and test only affected crates
-name: Smart CI - Affected Crates Only
+name: CI - Build & Test Affected
 
 on:
   pull_request:
