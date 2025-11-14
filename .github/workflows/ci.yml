@@ -42,7 +42,7 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "lint"
+          shared-key: "nightly"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -151,7 +151,7 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "test-nightly"
+          shared-key: "nightly"
 
       - name: Build
         shell: bash
@@ -197,7 +197,7 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "test-nightly"
+          shared-key: "nightly"
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
