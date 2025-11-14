@@ -108,13 +108,14 @@ jobs:
           shared-key: "test-${{ matrix.rust }}"
 
       - name: Setup sccache
+        id: setup-sccache-msrv
         uses: mozilla-actions/sccache-action@v0.0.6
         continue-on-error: true
 
       - name: Build
         shell: bash
         env:
-          RUSTC_WRAPPER: sccache
+          RUSTC_WRAPPER: ${{ steps.setup-sccache-msrv.outcome == 'success' && 'sccache' || '' }}
           SCCACHE_GHA_ENABLED: "true"
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
@@ -165,13 +166,14 @@ jobs:
           shared-key: "nightly"
 
       - name: Setup sccache
+        id: setup-sccache-nightly
         uses: mozilla-actions/sccache-action@v0.0.6
         continue-on-error: true
 
       - name: Build
         shell: bash
         env:
-          RUSTC_WRAPPER: sccache
+          RUSTC_WRAPPER: ${{ steps.setup-sccache-nightly.outcome == 'success' && 'sccache' || '' }}
           SCCACHE_GHA_ENABLED: "true"
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
@@ -218,6 +220,7 @@ jobs:
           shared-key: "nightly"
 
       - name: Setup sccache
+        id: setup-sccache
         uses: mozilla-actions/sccache-action@v0.0.6
         continue-on-error: true
 
@@ -229,7 +232,7 @@ jobs:
       - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
         env:
-          RUSTC_WRAPPER: sccache
+          RUSTC_WRAPPER: ${{ steps.setup-sccache.outcome == 'success' && 'sccache' || '' }}
           SCCACHE_GHA_ENABLED: "true"
 
       - name: Upload coverage to Codecov
