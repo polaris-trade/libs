@@ -3,20 +3,8 @@ name: Code Coverage
 on:
   pull_request:
     branches: [main, develop]
-    paths:
-      - "**/*.rs"
-      - "**/Cargo.toml"
-      - "Cargo.lock"
-      - ".cargo/**"
-      - ".config/**"
   push:
     branches: [main, develop]
-    paths:
-      - "**/*.rs"
-      - "**/Cargo.toml"
-      - "Cargo.lock"
-      - ".cargo/**"
-      - ".config/**"
 
   workflow_dispatch:
 
