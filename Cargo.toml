@@ -1,0 +1,40 @@
+[workspace]
+resolver = "3"
+members = ["_workspace-hack", "config_loader", "uuid_generator"]
+
+[workspace.package]
+edition = "2024"
+authors = ["Gabriel Putra Pinastika <gabri.putra@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/polaris-trade/libs"
+publish = ["github"]
+
+[workspace.dependencies]
+reqwest = { version = "0.12.24", default-features = false, features = [
+  "rustls-tls",
+  "gzip",
+  "brotli",
+  "deflate",
+  "json",
+  "stream",
+  "multipart",
+  "charset",
+  "http2",
+  "system-proxy",
+] }
+reqwest-middleware = "0.4.2"
+reqwest-retry = "0.7.0"
+reqwest-tracing = { version = "0.5.8", features = ["opentelemetry_0_30"] }
+http = "1.3.1"
+config = { version = "0.15.19" }
+uuid = { version = "1.18.1", features = ["v4", "v7"] }
+uuid-simd = { version = "0.8.0" }
+async-trait = "0.1.89"
+serde = "1.0.228"
+
+[profile.ci]
+inherits = "dev"
+opt-level = 0
+debug = false
+strip = "debuginfo"
+codegen-units = 16

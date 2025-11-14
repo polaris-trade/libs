@@ -1,0 +1,15 @@
+[package]
+name = "config_loader"
+version = "0.1.0"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+config = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+_workspace-hack = { version = "0.1", path = "../_workspace-hack" }

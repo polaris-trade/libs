@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+echo "🔧 Auto-formatting code..."
+cargo fmt --all 
+
+# Stage formatted files
+git add -u
+
+echo "✅ Code formatted and staged"
