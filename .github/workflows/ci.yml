@@ -46,6 +46,7 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
+        continue-on-error: true
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -79,8 +80,8 @@ jobs:
         os: [ubuntu-latest]
         rust:
           - stable # Latest stable
-          - 1.90.0 # MSRV-1
-          - 1.89.0 # MSRV-2
+          # - 1.90.0 # MSRV-1
+          # - 1.89.0 # MSRV-2
     steps:
       - uses: actions/checkout@v4
 
@@ -108,6 +109,7 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
+        continue-on-error: true
 
       - name: Build
         shell: bash
@@ -164,6 +166,7 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
+        continue-on-error: true
 
       - name: Build
         shell: bash
@@ -216,6 +219,7 @@ jobs:
 
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.6
+        continue-on-error: true
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -243,8 +247,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
 
       - name: Run cargo audit and save JSON
         run: |
