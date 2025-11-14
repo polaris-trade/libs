@@ -1,0 +1,33 @@
+name: PR Title Validation
+
+# This workflow validates PR title format only (for auto-generated release notes)
+# Commit message validation is enforced locally via git hooks (see LOCAL_ENFORCEMENT.md)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  validate-pr-title:
+    name: Validate PR Title Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install commitlint
+        run: |
+          npm install -g @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate PR title only (for release notes)
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        run: |
+          echo "Note: Individual commit messages are validated locally via git hooks"
+          echo "This only validates PR title for auto-generated release notes"
+          echo ""
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "${{ github.event.pull_request.title }}" | npx commitlint

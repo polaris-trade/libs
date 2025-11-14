@@ -1,0 +1,80 @@
+# Cross-Compilation Configuration
+# This file provides targets for building on multiple platforms with static linking
+
+# Standard Linux glibc
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-C",
+  "link-arg=-Wl,--as-needed",
+  "-C",
+  "link-arg=-Wl,-O1",
+]
+
+# Fully static Linux binaries (musl libc)
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"
+ar = "x86_64-linux-musl-ar"
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-C",
+  "link-arg=-Wl,--as-needed",
+  "-C",
+  "link-arg=-Wl,-O1",
+  "-C",
+  "target-feature=+crt-static",
+]
+
+
+# ARM64 Linux (musl)
+[target.aarch64-unknown-linux-musl]
+linker = "aarch64-linux-musl-gcc"
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-C",
+  "link-arg=-Wl,--as-needed",
+  "-C",
+  "link-arg=-Wl,-O1",
+  "-C",
+  "target-feature=+crt-static",
+]
+
+# macOS Intel
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=10.13"]
+
+# macOS Apple Silicon
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-mmacosx-version-min=11.0"]
+
+# Windows with static CRT
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+# Windows GNU toolchain
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+rustflags = [
+  "-C",
+  "target-cpu=x86-64-v3",
+  "-C",
+  "target-feature=+crt-static",
+  "-C",
+  "link-arg=-static",
+]
+
+# Profile configurations
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.release-with-debug]
+inherits = "release"
+strip = false
+debug = true
