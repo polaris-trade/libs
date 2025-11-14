@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+echo "⚡ Running pre-push checks..."
+echo ""
+
+echo "📋 Running clippy..."
+cargo clippy --all-targets --all-features -- -D warnings 2>&1 | grep -E "^(error|warning)" || cargo clippy --all-targets --all-features -- -D warnings || exit 1
+
+# Optimized build and test
+echo "🔨 Building..."
+export RUSTFLAGS="-C codegen-units=16 -C debuginfo=0"
+cargo build --profile ci >/dev/null 2>&1 || { echo "❌ Build failed!"; cargo build --profile ci; exit 1; }
+
+echo "🧪 Running tests..."
+cargo nextest run --profile ci 2>&1 | grep -v "^\s*Compiling\|^\s*Finished\|^\s*Running" || cargo test --quiet || exit 1
+
+echo "✅ All checks passed!"

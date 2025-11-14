@@ -1,0 +1,73 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  release-please:
+    name: Create Release PR
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-to-github:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: true
+
+      - name: Install cargo-workspaces
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-workspaces
+
+      - name: Setup Cargo registry for GitHub
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << 'EOF'
+          [registries.github]
+          index = "sparse+https://cargo.pkg.github.com/polaris-trade"
+          token = "${{ secrets.GITHUB_TOKEN }}"
+          EOF
+
+      - name: Publish workspace to GitHub Packages
+        run: |
+          cargo workspaces publish \
+            --from-git \
+            --registry github \
+            --token "${{ secrets.GITHUB_TOKEN }}" \
+            --yes \
+            --allow-dirty
+        env:
+          CARGO_REGISTRY_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

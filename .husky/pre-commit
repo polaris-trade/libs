@@ -1,0 +1,20 @@
+#!/usr/bin/env sh
+
+echo "🔧 Auto-formatting code..."
+cargo fmt --all
+
+echo "📦 Sorting Cargo.toml dependencies..."
+# Find and format all Cargo.toml files
+find . -name "Cargo.toml" -not -path "./target/*" -exec sh -c '
+  if command -v cargo-sort >/dev/null 2>&1; then
+    cargo sort --workspace --grouped "{}"
+  else
+    echo "⚠️  cargo-sort not installed, skipping dependency sorting"
+    echo "   Install with: cargo install cargo-sort"
+  fi
+' \;
+
+# Stage formatted files
+git add -u
+
+echo "✅ Code formatted and staged"
