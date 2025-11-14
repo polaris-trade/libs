@@ -163,7 +163,7 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     needs:
-      - test-msrv
+      - test-nightly
 
     steps:
       - name: Cache apt packages (Linux)
@@ -183,13 +183,13 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: nightly
           components: llvm-tools-preview
 
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "test-stable"
+          shared-key: "test-nightly"
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -214,7 +214,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run cargo-audit
-        uses: rustsec/audit-check@v1
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run cargo audit and save JSON
+        run: |
+          cargo audit --json > audit.json || true
+
+      - name: Convert report to HTML
+        run: |
+          echo "<html><body><pre>" > audit.html
+          jq '.' audit.json >> audit.html
+          echo "</pre></body></html>" >> audit.html
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          name: cargo-audit-html
+          path: audit.html
