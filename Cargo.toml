@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["_workspace-hack", "config_loader", "uuid_generator"]
+members = ["_workspace-hack", "add", "config_loader", "uuid_generator"]
 
 [workspace.package]
 edition = "2024"

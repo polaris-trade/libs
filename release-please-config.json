@@ -10,6 +10,11 @@
       "release-type": "rust",
       "package-name": "uuid_generator",
       "changelog-path": "uuid_generator/CHANGELOG.md"
+    },
+    "add": {
+      "release-type": "rust",
+      "package-name": "add",
+      "changelog-path": "add/CHANGELOG.md"
     }
   },
   "plugins": ["cargo-workspace"],
