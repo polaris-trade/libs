@@ -1,8 +1,5 @@
+# Build and test code across platforms
 name: CI - Build & Test
-
-# This workflow focuses on building and testing code across platforms
-# Git workflow rules (branch naming, commit format, etc.) are enforced locally via git hooks
-# See LOCAL_ENFORCEMENT.md for details
 
 on:
   pull_request:
@@ -20,35 +17,6 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # Code quality checks
-  # lint:
-  #   name: Code Quality (Clippy & Format)
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Cache apt packages
-  #       uses: awalsh128/cache-apt-pkgs-action@latest
-  #       with:
-  #         packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
-  #         version: 1.0
-
-  #     - name: Install Rust nightly
-  #       uses: dtolnay/rust-toolchain@nightly
-  #       with:
-  #         components: rustfmt, clippy
-
-  #     - name: Setup Rust cache
-  #       uses: Swatinem/rust-cache@v2
-  #       with:
-  #         shared-key: "lint"
-
-  #     - name: Check formatting
-  #       run: cargo fmt --all -- --check
-
-  #     - name: Run clippy
-  #       run: cargo clippy --all-targets --all-features -- -D warnings
-
   # Test on MSRV (3 recent stable versions)
   test-msrv:
     name: Test - Rust ${{ matrix.rust }} on ${{ matrix.os }}

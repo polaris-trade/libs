@@ -1,0 +1,260 @@
+# Build and test only affected crates
+name: Smart CI - Affected Crates Only
+
+on:
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Detect which crates are affected by changes
+  detect-affected:
+    name: Detect Affected Crates
+    runs-on: ubuntu-latest
+    outputs:
+      affected: ${{ steps.detect.outputs.affected }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect affected crates
+        id: detect
+        run: |
+          # Get changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Extract affected crates
+          AFFECTED_CRATES=$(echo "$CHANGED_FILES" | grep -E '^[^/]+/Cargo.toml' | cut -d'/' -f1 | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          if [ "$AFFECTED_CRATES" == "[]" ] || [ -z "$AFFECTED_CRATES" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "affected=[]" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "affected=$AFFECTED_CRATES" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Affected crates: $AFFECTED_CRATES"
+
+  # Lint affected crates (Linux only, all features)
+  lint-affected:
+    name: Lint Affected Crates
+    needs: detect-affected
+    if: needs.detect-affected.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
+          version: 1.0
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "lint-smart"
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Run clippy on affected crates
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Running clippy on $crate"
+            cargo clippy --package "$crate" --all-targets --all-features -- -D warnings
+          done
+
+  # Test affected crates on MSRV
+  test-msrv-affected:
+    name: Test Affected - Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    needs: [detect-affected, lint-affected]
+    if: needs.detect-affected.outputs.has_changes == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust:
+          - stable
+          - 1.90.0 # MSRV-1
+          - 1.89.0 # MSRV-2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages (Linux)
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
+          version: 1.0
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "test-msrv-smart-${{ matrix.os }}-${{ matrix.rust }}"
+
+      - name: Build affected crates
+        shell: bash
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Building $crate"
+            if [ "${{ runner.os }}" == "Linux" ]; then
+              cargo build --package "$crate" --release --all-features
+            else
+              cargo build --package "$crate" --release
+            fi
+          done
+
+      - name: Test affected crates
+        shell: bash
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Testing $crate"
+            if [ "${{ runner.os }}" == "Linux" ]; then
+              cargo test --package "$crate" --release --all-features
+            else
+              cargo test --package "$crate" --release
+            fi
+          done
+
+  # Test affected crates on nightly
+  test-nightly-affected:
+    name: Test Affected - Rust nightly on ${{ matrix.os }}
+    needs: [detect-affected, lint-affected]
+    if: needs.detect-affected.outputs.has_changes == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # Allow nightly to fail
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages (Linux)
+        if: runner.os == 'Linux'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
+          version: 1.0
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "test-nightly-smart-${{ matrix.os }}"
+
+      - name: Build affected crates
+        shell: bash
+        continue-on-error: true
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Building $crate"
+            if [ "${{ runner.os }}" == "Linux" ]; then
+              cargo build --package "$crate" --release --all-features
+            else
+              cargo build --package "$crate" --release
+            fi
+          done
+
+      - name: Test affected crates
+        shell: bash
+        continue-on-error: true
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Testing $crate"
+            if [ "${{ runner.os }}" == "Linux" ]; then
+              cargo test --package "$crate" --release --all-features
+            else
+              cargo test --package "$crate" --release
+            fi
+          done
+
+  # Run benchmarks on affected crates (Linux nightly only)
+  bench-affected:
+    name: Benchmark Affected Crates
+    needs: [detect-affected, lint-affected]
+    if: needs.detect-affected.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
+          version: 1.0
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "bench-smart"
+
+      - name: Run benchmarks on affected crates
+        continue-on-error: true
+        run: |
+          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+            echo "Running benchmarks for $crate"
+            if cargo metadata --format-version 1 | jq -e ".packages[] | select(.name == \"$crate\") | .targets[] | select(.kind[] == \"bench\")" > /dev/null; then
+              cargo bench --package "$crate" --all-features -- --output-format bencher | tee -a bench_results.txt
+            else
+              echo "No benchmarks found for $crate"
+            fi
+          done
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-smart
+          path: bench_results.txt
+          if-no-files-found: ignore
+
+  # Placeholder job when no changes detected
+  no-changes:
+    name: No Code Changes Detected
+    needs: detect-affected
+    if: needs.detect-affected.outputs.has_changes == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: No changes
+        run: echo "No crate changes detected. Skipping tests."
