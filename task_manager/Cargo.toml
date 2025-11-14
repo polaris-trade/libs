@@ -1,0 +1,13 @@
+[package]
+name = "task_manager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+thiserror = { workspace = true }
+tokio-util = { workspace = true }
+async-trait = { workspace = true }
+tokio-graceful-shutdown = { workspace = true }
+logger = { path = "../logger" }
+core_affinity = { workspace = true }
+_workspace-hack = { version = "0.1", path = "../_workspace-hack" }
