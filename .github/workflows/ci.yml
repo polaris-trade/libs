@@ -15,6 +15,12 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # sccache configuration (optional - falls back to GitHub Actions cache if not set)
+  # SCCACHE_BUCKET: ${{ secrets.SCCACHE_BUCKET }}
+  # SCCACHE_REGION: auto
+  # SCCACHE_ENDPOINT: ${{ secrets.SCCACHE_ENDPOINT }}
+  # AWS_ACCESS_KEY_ID: ${{ secrets.SCCACHE_AWS_ACCESS_KEY_ID }}
+  # AWS_SECRET_ACCESS_KEY: ${{ secrets.SCCACHE_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
   # Lint affected crates (Linux only, all features)
@@ -114,9 +120,9 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          RUSTC_WRAPPER: ${{ steps.setup-sccache-msrv.outcome == 'success' && 'sccache' || '' }}
-          SCCACHE_GHA_ENABLED: "true"
+        # env:
+        #   RUSTC_WRAPPER: ${{ steps.setup-sccache-msrv.outcome == 'success' && 'sccache' || '' }}
+        #   SCCACHE_GHA_ENABLED: "true"
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
             cargo build --release --all-features
@@ -172,9 +178,9 @@ jobs:
 
       - name: Build
         shell: bash
-        env:
-          RUSTC_WRAPPER: ${{ steps.setup-sccache-nightly.outcome == 'success' && 'sccache' || '' }}
-          SCCACHE_GHA_ENABLED: "true"
+        # env:
+        #   RUSTC_WRAPPER: ${{ steps.setup-sccache-nightly.outcome == 'success' && 'sccache' || '' }}
+        #   SCCACHE_GHA_ENABLED: "true"
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
             cargo build --release --all-features
@@ -231,9 +237,9 @@ jobs:
 
       - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-        env:
-          RUSTC_WRAPPER: ${{ steps.setup-sccache.outcome == 'success' && 'sccache' || '' }}
-          SCCACHE_GHA_ENABLED: "true"
+        # env:
+        #   RUSTC_WRAPPER: ${{ steps.setup-sccache.outcome == 'success' && 'sccache' || '' }}
+        #   SCCACHE_GHA_ENABLED: "true"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
