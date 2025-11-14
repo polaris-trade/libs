@@ -6,6 +6,8 @@ authors = [
   "Gabriel Putra Pinastika <gabri.putra@gmail.com> (https://github.com/0x67)",
 ]
 description = "Crate for managing reusable data types and its own parser if applicable"
+publish = ["github"] # Only publish to GitHub Packages (private registry)
+repository = "https://github.com/polaris-trade/polaris-trade-libs"
 
 [features]
 

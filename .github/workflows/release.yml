@@ -1,0 +1,226 @@
+name: Auto Version Bump & Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - ".github/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect Changed Crates
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed crates and bump type
+        id: detect
+        run: |
+          # Get commits since last tag or last 10 commits
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -n "$LAST_TAG" ]]; then
+            COMMITS=$(git log --format=%s $LAST_TAG..HEAD)
+            CHANGED_FILES=$(git diff --name-only $LAST_TAG..HEAD)
+          else
+            COMMITS=$(git log --format=%s HEAD~10..HEAD)
+            CHANGED_FILES=$(git diff --name-only HEAD~10..HEAD)
+          fi
+
+          echo "Analyzing commits:"
+          echo "$COMMITS"
+
+          # Determine GLOBAL bump type (applies to all changed crates)
+          BUMP_TYPE="patch"
+          if echo "$COMMITS" | grep -qE '^[^:]+!:' || echo "$COMMITS" | grep -qi 'BREAKING CHANGE'; then
+            BUMP_TYPE="major"
+            echo "🚨 Breaking change detected → major bump"
+          elif echo "$COMMITS" | grep -qE '^(feat|feature)(\([^)]*\))?:'; then
+            BUMP_TYPE="minor"
+            echo "✨ Feature detected → minor bump"
+          elif echo "$COMMITS" | grep -qE '^(fix|bugfix|perf|refactor)(\([^)]*\))?:'; then
+            BUMP_TYPE="patch"
+            echo "🐛 Fix detected → patch bump"
+          else
+            BUMP_TYPE="patch"
+            echo "📝 No conventional commit → patch bump (default)"
+          fi
+
+          # Find ALL changed crates
+          RELEASES="[]"
+
+          for dir in */; do
+            CRATE=$(basename "$dir")
+            
+            # Skip if not a crate
+            if [[ ! -f "$dir/Cargo.toml" ]]; then continue; fi
+            
+            # Check if this crate has changes
+            CRATE_CHANGES=$(echo "$CHANGED_FILES" | grep "^$CRATE/" || true)
+            if [[ -z "$CRATE_CHANGES" ]]; then
+              echo "⏭️  Skipping $CRATE (no changes)"
+              continue
+            fi
+            
+            echo "📦 $CRATE has changes:"
+            echo "$CRATE_CHANGES" | head -5
+            
+            # Get current version
+            CURRENT_VERSION=$(grep '^version = ' "$dir/Cargo.toml" | head -1 | cut -d'"' -f2)
+            
+            # Calculate new version based on GLOBAL bump type
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            
+            case $BUMP_TYPE in
+              major)
+                NEW_VERSION="$((MAJOR + 1)).0.0"
+                ;;
+              minor)
+                NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+                ;;
+              patch)
+                NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+                ;;
+            esac
+            
+            echo "  $CURRENT_VERSION → $NEW_VERSION ($BUMP_TYPE)"
+            
+            TAG="${CRATE}/v${NEW_VERSION}"
+            
+            # Extract crate-specific commits
+            CRATE_COMMITS=$(echo "$COMMITS" | grep -iE "\($CRATE\):" || echo "- General improvements")
+            
+            RELEASES=$(echo "$RELEASES" | jq --arg crate "$CRATE" \
+              --arg old "$CURRENT_VERSION" \
+              --arg new "$NEW_VERSION" \
+              --arg tag "$TAG" \
+              --arg bump "$BUMP_TYPE" \
+              --arg commits "$CRATE_COMMITS" \
+              '. += [{"crate": $crate, "old_version": $old, "version": $new, "tag": $tag, "bump_type": $bump, "commits": $commits}]')
+          done
+
+          if [[ "$RELEASES" == "[]" ]]; then
+            echo "❌ No crate changes detected"
+            echo "matrix={\"include\":[]}" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Releases to create:"
+            echo "$RELEASES" | jq -r '.[] | "  - \(.crate): \(.old_version) → \(.version) (\(.bump_type))"'
+            echo "matrix={\"include\":$RELEASES}" >> $GITHUB_OUTPUT
+          fi
+
+  bump-and-release:
+    name: Bump & Release ${{ matrix.crate }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '{"include":[]}'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    strategy:
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump version in Cargo.toml
+        run: |
+          cd ${{ matrix.crate }}
+
+          # Update version
+          sed -i 's/^version = ".*"/version = "${{ matrix.version }}"/' Cargo.toml
+
+          # Update CHANGELOG
+          if [[ -f CHANGELOG.md ]]; then
+            DATE=$(date +%Y-%m-%d)
+            sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${{ matrix.version }}] - $DATE/" CHANGELOG.md
+          fi
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add ${{ matrix.crate }}/Cargo.toml ${{ matrix.crate }}/CHANGELOG.md
+          git commit -m "chore(${{ matrix.crate }}): bump version to ${{ matrix.version }} [skip ci]"
+          git push origin main
+
+      - name: Create and push tag
+        run: |
+          git tag -a "${{ matrix.tag }}" -m "chore(${{ matrix.crate }}): release v${{ matrix.version }}"
+          git push origin "${{ matrix.tag }}"
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "release"
+
+      - name: Build ${{ matrix.crate }}
+        run: cargo build --release --package ${{ matrix.crate }}
+
+      - name: Configure cargo for GitHub Packages
+        run: |
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml << EOF
+          [registries.github]
+          index = "sparse+https://github.com/polaris-trade/polaris-trade-libs/"
+          token = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+
+          [net]
+          git-fetch-with-cli = true
+          EOF
+
+      - name: Publish to GitHub Packages (Private Registry)
+        env:
+          CARGO_REGISTRIES_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd ${{ matrix.crate }}
+          cargo publish --registry github
+
+      - name: Generate changelog for release
+        id: changelog
+        run: |
+          cd ${{ matrix.crate }}
+          if [[ -f CHANGELOG.md ]]; then
+            # Extract changelog for this version
+            CHANGELOG=$(sed -n "/## \[${{ matrix.version }}\]/,/## \[/p" CHANGELOG.md | sed '$d')
+          else
+            # Generate from git commits
+            CHANGELOG=$(git log ${{ matrix.old_version }}..HEAD --pretty=format:"- %s" --no-merges -- ${{ matrix.crate }}/)
+          fi
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ matrix.tag }}
+          name: ${{ matrix.crate }} v${{ matrix.version }}
+          body: |
+            ## ${{ matrix.crate }} v${{ matrix.version }}
+
+            🚀 Published to GitHub Packages
+
+            ### Installation
+            ```toml
+            [dependencies]
+            ${{ matrix.crate }} = { version = "${{ matrix.version }}", registry = "github" }
+            ```
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false

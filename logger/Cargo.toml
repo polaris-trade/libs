@@ -3,8 +3,10 @@ name = "logger"
 version = "0.1.0"
 edition = "2024"
 authors = [
-  "Gabriel Putra Pinastika <gabri.putra@gmail.com> (https://github.com/0x67)",
+  "Gabriel Putra Pinastika <mailto:gabri.putra@gmail.com> (https://github.com/0x67)",
 ]
+publish = ["github"]
+repository = "https://github.com/polaris-trade/polaris-trade-libs"
 
 [dev-dependencies]
 tempfile = { workspace = true }

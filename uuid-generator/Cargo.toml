@@ -2,6 +2,11 @@
 name = "uuid-generator"
 version = "0.1.0"
 edition = "2024"
+authors = [
+  "Gabriel Putra Pinastika <mailto:gabri.putra@gmail.com> (https://github.com/0x67)",
+]
+publish = ["github"]
+repository = "https://github.com/polaris-trade/polaris-trade-libs"
 
 [dependencies]
 uuid = { workspace = true, features = ["serde"] }
