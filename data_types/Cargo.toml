@@ -1,0 +1,44 @@
+[package]
+name = "data_types"
+version = "0.1.0"
+edition = "2024"
+authors = [
+  "Gabriel Putra Pinastika <gabri.putra@gmail.com> (https://github.com/0x67)",
+]
+description = "Crate for managing reusable data types and its own parser if applicable"
+
+[features]
+
+[dependencies]
+opentelemetry = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+thiserror = { workspace = true }
+rust_decimal = { workspace = true }
+_workspace-hack = { version = "0.1", path = "../_workspace-hack" }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tempfile = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench_parse_int"
+harness = false
+
+[[bench]]
+name = "bench_parse_uint"
+harness = false
+
+[[bench]]
+name = "bench_parse_date"
+harness = false
+
+[[bench]]
+name = "bench_parse_second"
+harness = false
+
+[[bench]]
+name = "bench_parse_nano"
+harness = false

@@ -1,0 +1,14 @@
+[package]
+name = "config_loader"
+version = "0.1.0"
+edition = "2024"
+authors = [
+  "Gabriel Putra Pinastika <gabri.putra@gmail.com> (https://github.com/0x67)",
+]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+config = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+_workspace-hack = { version = "0.1", path = "../_workspace-hack" }
