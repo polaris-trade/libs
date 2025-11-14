@@ -29,8 +29,5 @@ jobs:
       - name: Validate PR title only (for release notes)
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         run: |
-          echo "Note: Individual commit messages are validated locally via git hooks"
-          echo "This only validates PR title for auto-generated release notes"
-          echo ""
           echo "PR Title: ${{ github.event.pull_request.title }}"
           echo "${{ github.event.pull_request.title }}" | npx commitlint
