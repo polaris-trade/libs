@@ -26,48 +26,28 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  publish-to-github:
-    name: Publish to GitHub Packages
+  publish-release:
+    name: Create Release Tags
     runs-on: ubuntu-latest
     needs: release-please
     if: ${{ needs.release-please.outputs.releases_created == 'true' }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-targets: true
-
-      - name: Install cargo-workspaces
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-workspaces
-
-      - name: Setup Cargo registry for GitHub
+      - name: Release Info
         run: |
-          mkdir -p ~/.cargo
-          cat >> ~/.cargo/config.toml << 'EOF'
-          [registries.github]
-          index = "sparse+https://cargo.pkg.github.com/polaris-trade"
-          token = "${{ secrets.GITHUB_TOKEN }}"
-          EOF
-
-      - name: Publish workspace to GitHub Packages
-        run: |
-          cargo workspaces publish \
-            --from-git \
-            --registry github \
-            --token "${{ secrets.GITHUB_TOKEN }}" \
-            --yes \
-            --allow-dirty
-        env:
-          CARGO_REGISTRY_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "✅ Release tags created successfully!"
+          echo ""
+          echo "📦 Use in your projects with git dependencies:"
+          echo ""
+          echo "[dependencies]"
+          echo "config_loader = { git = "https://github.com/polaris-trade/libs", tag = "config_loader-v0.2.1" }"
+          echo "uuid-generator = { git = "https://github.com/polaris-trade/libs", tag = "uuid-generator-v0.1.5" }"
+          echo ""
+          echo "🚀 For faster git fetching, add to ~/.cargo/config.toml:"
+          echo ""
+          echo "[net]"
+          echo "git-fetch-with-cli = true"
+          echo ""
+          echo "Or use SSH for faster clones:"
+          echo "config_loader = { git = \"ssh://git@github.com/polaris-trade/libs\" }"
