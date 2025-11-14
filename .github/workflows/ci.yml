@@ -269,16 +269,4 @@ jobs:
 
       - name: Run cargo audit and save JSON
         run: |
-          cargo audit --json > audit.json || true
-
-      - name: Convert report to HTML
-        run: |
-          echo "<html><body><pre>" > audit.html
-          jq '.' audit.json >> audit.html
-          echo "</pre></body></html>" >> audit.html
-
-      - name: Upload HTML report
-        uses: actions/upload-artifact@v4
-        with:
-          name: cargo-audit-html
-          path: audit.html
+          cargo audit --json
