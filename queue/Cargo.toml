@@ -1,9 +1,0 @@
-[package]
-name = "queue"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-bytes = { workspace = true }
-data_types = { path = "../data_types" }
-_workspace-hack = { version = "0.1", path = "../_workspace-hack" }
