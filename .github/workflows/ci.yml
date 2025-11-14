@@ -17,10 +17,58 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
+  # Lint affected crates (Linux only, all features)
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    # Skip if the commit message contains [skip ci] or is from github-actions bot
+    if: |
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      github.event.head_commit.author.name != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: build-essential pkg-config libssl-dev libelf-dev zlib1g-dev cmake
+          version: 1.0
+
+      - name: Install Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "lint"
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Auto-fix formatting (if check failed)
+        if: failure()
+        run: |
+          echo "Formatting issues detected. Auto-fixing..."
+          cargo fmt --all
+
+      - name: Commit formatting fixes
+        if: failure()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-fix rustfmt formatting [skip ci]"
+          file_pattern: "*.rs"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"
+
+      # - name: Run clippy
+      #   run: cargo clippy --all-targets --all-features -- -D warnings
+
   # Test on MSRV (3 recent stable versions)
   test-msrv:
     name: Test - Rust ${{ matrix.rust }} on ${{ matrix.os }}
-    # needs: lint
+    needs: lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
@@ -76,7 +124,7 @@ jobs:
   # Test on nightly (latest)
   test-nightly:
     name: Test - Rust Nightly on ${{ matrix.os }}
-    # needs: lint
+    needs: lint
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
