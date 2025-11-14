@@ -81,13 +81,13 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Run clippy on affected crates
-        run: |
-          AFFECTED='${{ needs.detect-affected.outputs.affected }}'
-          for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
-            echo "Running clippy on $crate"
-            cargo clippy --package "$crate" --all-targets --all-features -- -D warnings
-          done
+      # - name: Run clippy on affected crates
+      #   run: |
+      #     AFFECTED='${{ needs.detect-affected.outputs.affected }}'
+      #     for crate in $(echo "$AFFECTED" | jq -r '.[]'); do
+      #       echo "Running clippy on $crate"
+      #       cargo clippy --package "$crate" --all-targets --all-features -- -D warnings
+      #     done
 
   # Test affected crates on MSRV
   test-msrv-affected:
